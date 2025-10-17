@@ -25,7 +25,7 @@ This automation solves that problem by using **AI + automation** to bridge the g
 
 ---
 
-## 🧩 Tech Stack
+## Tech Stack
 
 | Tool | Purpose |
 |------|----------|
