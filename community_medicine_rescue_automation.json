@@ -1,0 +1,268 @@
+{
+  "name": "community-medicine-rescue-automation",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "whatsapp-incoming",
+        "options": {
+          "responseData": {
+            "status": "received"
+          }
+        }
+      },
+      "id": "0016ea5d-ace9-402e-b9c6-e091e7513a02",
+      "name": "Incoming WhatsApp Message",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        720,
+        -160
+      ],
+      "webhookId": "whatsapp-incoming-trigger"
+    },
+    {
+      "parameters": {
+        "functionCode": "const response = JSON.parse(items[0].json.candidates[0].content.parts[0].text || '{}');\nreturn [{ json: response }];"
+      },
+      "id": "ad1dd662-aa01-49fd-b4e8-c997ddd0a7d3",
+      "name": "Parse Gemini Output",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1380,
+        -160
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        }
+      },
+      "id": "004020c9-6a98-4982-9813-a87bab97aa31",
+      "name": "Search Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 3,
+      "position": [
+        1680,
+        -160
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const medicine = $json[\"medicine\"]?.toLowerCase() || '';\nconst location = $json[\"location\"]?.toLowerCase() || '';\nconst data = items[1].json.data;\nconst nearby = data.filter(row => row[2]?.toLowerCase().includes(medicine));\nreturn nearby.map(r => ({ json: { name: r[0], location: r[1], medicines: r[2], whatsapp: r[3] } }));"
+      },
+      "id": "0346d8ac-98fb-4dad-a448-e1c864d71743",
+      "name": "Filter Nearby Pharmacies",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1980,
+        -160
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://graph.facebook.com/v18.0/YOUR_PHONE_NUMBER_ID/messages",
+        "jsonParameters": true,
+        "options": {}
+      },
+      "id": "5bd3037a-bb1d-4c2e-8979-262291cdb2c5",
+      "name": "Notify Volunteers via WhatsApp",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        2280,
+        -160
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "volunteer-response",
+        "options": {
+          "responseData": {
+            "status": "ok"
+          }
+        }
+      },
+      "id": "6ea653a3-b52f-4c21-8704-360abefb1987",
+      "name": "Wait for Volunteer Response",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        2640,
+        -160
+      ],
+      "webhookId": "volunteer-response"
+    },
+    {
+      "parameters": {
+        "functionCode": "const message = $json[\"Body\"] || $json[\"message\"] || '';\nif (message.toLowerCase().includes('available')) {\n  return [{ json: { status: 'assigned', volunteer: $json[\"from\"] } }];\n}\nreturn [];"
+      },
+      "id": "1ac55ab4-ec31-48ec-b8a4-a7590587eb16",
+      "name": "Assign First Volunteer",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        2860,
+        -160
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://graph.facebook.com/v18.0/YOUR_PHONE_NUMBER_ID/messages",
+        "jsonParameters": true,
+        "options": {}
+      },
+      "id": "aa60baa6-5bc2-46e4-b68d-aa451d12d1f5",
+      "name": "Confirm with Donor",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        3100,
+        -160
+      ]
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.6,
+      "position": [
+        960,
+        -160
+      ],
+      "id": "5737cb19-d0ef-4077-851a-46ac6d158a63",
+      "name": "Basic LLM Chain"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        960,
+        0
+      ],
+      "id": "57667515-d34f-4ea5-841d-e9ff239a6fb4",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "Dty9KOY2FCe2FtJn",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Incoming WhatsApp Message": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Gemini Output": {
+      "main": [
+        [
+          {
+            "node": "Search Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search Google Sheets": {
+      "main": [
+        [
+          {
+            "node": "Filter Nearby Pharmacies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Nearby Pharmacies": {
+      "main": [
+        [
+          {
+            "node": "Notify Volunteers via WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait for Volunteer Response": {
+      "main": [
+        [
+          {
+            "node": "Assign First Volunteer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Assign First Volunteer": {
+      "main": [
+        [
+          {
+            "node": "Confirm with Donor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "Parse Gemini Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "570f6f2d-e632-4803-a80a-ccc21c99bed4",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "e3c1ff84e1cd9ca1d35b77731e51ee9502aaa728f81985ad742b67d4567254b1"
+  },
+  "id": "A3OfY3rCYUMKMpdR",
+  "tags": []
+}
